@@ -1,0 +1,26 @@
+{
+  "name": "http-cache-checks",
+  "version": "0.0.0",
+  "description": "RFC 2616 compliant way to make various checks, related to cache",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha test/* test/**/* -R spec",
+    "coverage": "istanbul cover _mocha -- -u exports -R spec"
+  },
+  "keywords": [
+    "http",
+    "cache",
+    "RFC",
+    "2616",
+    "check"
+  ],
+  "dependencies": {
+    "lru-cache": "^2.6.2"
+  },
+  "devDependencies": {
+    "istanbul": "^0.3.13",
+    "mocha": "2.2.*"
+  },
+  "author": "Alexander Savin",
+  "license": "MIT"
+}
