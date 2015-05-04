@@ -1,7 +1,10 @@
 var CachingRequest = require('./TestCachingRequest'),
     assert = require('assert'),
-    MemoryStorage = require('../lib/storages/MemoryStorage'),
-    memoryStorage = new MemoryStorage();
+    HttpCacheStorage = require('../lib/storages/HttpCacheStorage'),
+    AsyncLruCache = require('../lib/storages/AsyncLruCache'),
+    memoryStorage = new HttpCacheStorage({
+        storage: new AsyncLruCache()
+    });
 
 describe('CachingRequest', function () {
 
@@ -180,20 +183,20 @@ describe('CachingRequest', function () {
                                     assert.equal(err, null);
                                     assert.equal(res, secondResponse);
                                     var thirdRequest = new CachingRequest({
-                                            requestOptions: {
-                                                url: '/bla3',
-                                                method: 'GET',
-                                                headers: {
-                                                    'accept-encoding': 'gzip'
-                                                }
-                                            },
-                                            storage: memoryStorage,
-                                            callback: function (err, res) {
-                                                assert.equal(err, null);
-                                                assert.equal(res.body, 'blagzip');
-                                                done();
+                                        requestOptions: {
+                                            url: '/bla3',
+                                            method: 'GET',
+                                            headers: {
+                                                'accept-encoding': 'gzip'
                                             }
-                                        });
+                                        },
+                                        storage: memoryStorage,
+                                        callback: function (err, res) {
+                                            assert.equal(err, null);
+                                            assert.equal(res.body, 'blagzip');
+                                            done();
+                                        }
+                                    });
                                     thirdRequest.send();
                                 }
                             }),
@@ -217,6 +220,69 @@ describe('CachingRequest', function () {
                         date: (new Date()).toUTCString(),
                         'cache-control': 'max-age=3',
                         vary: 'Accept-Encoding'
+                    }
+                };
+            request.setResponse(response);
+            request.send();
+        });
+        it('removes 1* warning headers but retains 2* warning headers, other end-to-end headers gets from last response', function (done) {
+            var request = new CachingRequest({
+                    requestOptions: {
+                        url: '/bla4',
+                        method: 'GET'
+                    },
+                    storage: memoryStorage,
+                    callback: function (err, res) {
+                        assert.equal(err, null);
+                        assert.deepEqual(res, response);
+                        var secondRequest = new CachingRequest({
+                                requestOptions: {
+                                    url: '/bla4',
+                                    method: 'GET'
+                                },
+                                storage: memoryStorage,
+                                callback: function (err, res) {
+                                    assert.equal(err, null);
+                                    assert.equal(res.body, 'bla');
+                                    var requestHeaders = secondRequest.getRequestHeaders();
+                                    assert.equal(requestHeaders['if-modified-since'], lastModified);
+                                    assert.equal(requestHeaders['if-none-match'], etag);
+                                    assert.equal(res.headers['warning'].length, 1);
+                                    assert.equal(res.headers['warning'][0], warning[1]);
+                                    assert.equal(res.headers['server'], secondResponse.headers['server']);
+                                    assert.equal(res.headers['connection'], response.headers['connection']);
+                                    done();
+                                }
+                            }),
+                            secondResponse = {
+                                statusCode: 304,
+                                headers: {
+                                    date: (new Date()).toUTCString(),
+                                    'last-modified': lastModified,
+                                    etag: etag,
+                                    server: 'CERN/3.1 libwww/2.17'
+                                }
+                            };
+                        secondRequest.setResponse(secondResponse);
+                        secondRequest.send();
+                    }
+                }),
+                lastModified = (new Date()).toUTCString(),
+                etag = '1',
+                warning = [
+                    '110 Response is stale',
+                    '299 Miscellaneous persistent warning'
+                ],
+                response = {
+                    body: 'bla',
+                    statusCode: 200,
+                    headers: {
+                        date: (new Date()).toUTCString(),
+                        'last-modified': lastModified,
+                        etag: etag,
+                        warning: warning,
+                        server: 'CERN/3.0 libwww/2.17',
+                        connection: 'close'
                     }
                 };
             request.setResponse(response);
