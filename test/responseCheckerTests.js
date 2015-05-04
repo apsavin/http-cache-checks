@@ -95,6 +95,20 @@ describe('ResponseChecker', function () {
         assert(responseChecker.isStorable());
     });
 
+    it('is storable if valid expires specified', function () {
+        var date = new Date(),
+            currentDateUTC = date.toUTCString();
+        date.setFullYear(date.getFullYear() + 1);
+        var responseChecker = new ResponseChecker({
+            statusCode: 200,
+            headers: {
+                'date': currentDateUTC,
+                'expires': date.toUTCString()
+            }
+        });
+        assert(responseChecker.isStorable());
+    });
+
     it('is storable if last-modified specified', function () {
         var responseChecker = new ResponseChecker({
             statusCode: 200,
